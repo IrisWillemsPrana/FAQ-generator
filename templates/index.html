@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .faq-form {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .faq-form input,
+        .faq-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .faq-form button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .output {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .output textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="faq-form">
+    <h2>FAQ Generator</h2>
+    <div id="faqs">
+        <div class="faq">
+            <input type="text" class="question" placeholder="Voer de vraag in">
+            <textarea class="answer" rows="5" placeholder="Voer het antwoord in"></textarea>
+        </div>
+    </div>
+    <button onclick="addFaq()">Nog een FAQ Toevoegen</button>
+    <button onclick="generateCode()">Genereer Code</button>
+</div>
+
+<div class="output">
+    <h3>Gegenereerde Code</h3>
+    <textarea id="generatedCode" readonly></textarea>
+    <button onclick="copyCode()">Kopieer Code</button>
+</div>
+
+<script>
+    function addFaq() {
+        var faqDiv = document.createElement('div');
+        faqDiv.classList.add('faq');
+        faqDiv.innerHTML = '<input type="text" class="question" placeholder="Voer de vraag in"><textarea class="answer" rows="5" placeholder="Voer het antwoord in"></textarea>';
+        document.getElementById('faqs').appendChild(faqDiv);
+    }
+
+    function generateCode() {
+        var faqs = [];
+        var faqElements = document.querySelectorAll('.faq');
+        faqElements.forEach(function(faq) {
+            var question = faq.querySelector('.question').value;
+            var answer = faq.querySelector('.answer').value;
+            if (question && answer) {
+                faqs.push({ question: question, answer: answer });
+            }
+        });
+
+        fetch('/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ faqs: faqs })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('generatedCode').value = data.code;
+        });
+    }
+
+    function copyCode() {
+        var codeText = document.getElementById('generatedCode');
+        codeText.select();
+        codeText.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand("copy");
+        alert("Code gekopieerd!");
+    }
+</script>
+
+</body>
+</html>
