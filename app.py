@@ -1,18 +1,95 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+import pandas as pd
+import os
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+load_dotenv()  # Laad de omgevingsvariabelen uit .env
 
 app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY')  # Haal de secret key op uit omgevingsvariabelen
+app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Haal de gebruikersgegevens op uit omgevingsvariabelen
+USERNAME = os.getenv('USER_NAME')
+PASSWORD = os.getenv('PASSWORD')
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if 'user' in session:
+        return render_template('index.html')
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        # Debug output
+        print(f"Provided username: {username}")
+        print(f"Provided password: {password}")
+        print(f"Expected username: {USERNAME}")
+        print(f"Expected password: {PASSWORD}")
+        if username == USERNAME and password == PASSWORD:
+            session['user'] = username
+            return redirect(url_for('index'))
+        return "Invalid credentials"
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('login'))
 
 @app.route('/generate', methods=['POST'])
 def generate():
+    if 'user' not in session:
+        return redirect(url_for('login'))
     faqs = request.json.get('faqs', [])
     code = generate_faq_code(faqs)
     return jsonify({'code': code})
 
+@app.route('/upload_csv', methods=['POST'])
+def upload_csv():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    if 'file' not in request.files:
+        return "No file part"
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file"
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        faqs = process_csv(filepath)
+        return jsonify({'faqs': faqs})
+    return "Invalid file"
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'csv'}
+
+def process_csv(filepath):
+    df = pd.read_csv(filepath)
+    # Controleer en verwijder eventuele voor- en achterliggende spaties in de kolomnamen
+    df.columns = [col.strip() for col in df.columns]
+    
+    # Verwijder aanhalingstekens en extra spaties rondom de waarden
+    df['Antwoord'] = df['Antwoord'].str.replace('"', '').str.strip()
+    df['Vraag'] = df['Vraag'].str.replace('"', '').str.strip()
+
+    # Debug output om te controleren of de kolommen correct zijn gelezen
+    # print(df.head())
+
+    # Hernoem de kolommen naar Engels zoals de frontend verwacht
+    df = df.rename(columns={'Vraag': 'question', 'Antwoord': 'answer'})
+    faqs = df.to_dict(orient='records')
+
+    # print(faqs)
+    return faqs
+
 def generate_faq_code(faqs):
+    # Stijl en HTML voor de gegenereerde code
     style = """
     <style>
         * {
@@ -97,10 +174,10 @@ def generate_faq_code(faqs):
                 <svg class='arrow' viewBox='0 0 320 512' width='16' title='angle-down'>
                     <path d='M143 352.3L7 216.3c-9.4-9.4-9.4-24.6 0-33.9l22.6-22.6c9.4-9.4 24.6-9.4 33.9 0l96.4 96.4 96.4-96.4c9.4-9.4 24.6-9.4 33.9 0l22.6 22.6c9.4 9.4 9.4 24.6 0 33.9l-136 136c-9.2 9.4-24.4 9.4-33.8 0z'/>
                 </svg>
-                <span>{faq['question']}</span>
+                <span>{faq['Vraag']}</span>
             </button>
             <div class='accordeon-body'>
-                <p>{faq['answer']}</p>
+                <p>{faq['Amtwoord']}</p>
             </div>
         </div>
         """
@@ -132,4 +209,6 @@ def generate_faq_code(faqs):
     return html
 
 if __name__ == '__main__':
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)

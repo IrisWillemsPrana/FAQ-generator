@@ -70,3 +70,6 @@ instance/
 
 # macOS files
 .DS_Store
+
+._TESTS/
+._TESTS/*
