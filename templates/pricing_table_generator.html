@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prijstabel Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .pricing-form {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .pricing-form input,
+        .pricing-form textarea,
+        .pricing-form button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .pricing-form button {
+            background: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+        }
+        .output {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .output textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        nav {
+            background-color: #007bff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/">Home</a>
+    <a href="/faq-generator">FAQ Generator</a>
+    <a href="/pricing-table-generator">Prijstabel Generator</a>
+    <a href="/logout">Logout</a>
+</nav>
+
+<div class="pricing-form">
+    <h2>Prijstabel Generator</h2>
+    <div id="plans">
+        <div class="plan">
+            <input type="text" class="plan-name" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+            <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
+            <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
+            <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
+            <input type="url" class="url" placeholder="URL voor de knop" required>
+            <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required></textarea>
+        </div>
+    </div>
+    <button onclick="addPlan()">Nog een plan toevoegen</button>
+    <button onclick="generatePricing()">Genereer Prijstabel</button>
+</div>
+
+<div class="output">
+    <h3>Gegenereerde Code</h3>
+    <textarea id="generatedCode" readonly></textarea>
+    <button onclick="copyCode()">Kopieer Code</button>
+</div>
+
+<script>
+    function addPlan() {
+        var planDiv = document.createElement('div');
+        planDiv.classList.add('plan');
+        planDiv.innerHTML = `
+            <input type="text" class="plan-name" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+            <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
+            <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
+            <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
+            <input type="url" class="url" placeholder="URL voor de knop" required>
+            <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required></textarea>
+        `;
+        document.getElementById('plans').appendChild(planDiv);
+    }
+
+    function generatePricing() {
+        var plans = [];
+        var planElements = document.querySelectorAll('.plan');
+        planElements.forEach(function(plan) {
+            var name = plan.querySelector('.plan-name').value;
+            var quarterly_price = plan.querySelector('.quarterly-price').value;
+            var yearly_price = plan.querySelector('.yearly-price').value;
+            var full_yearly_price = plan.querySelector('.full-yearly-price').value;
+            var url = plan.querySelector('.url').value;
+            var features = plan.querySelector('.features').value.split(',');
+
+            if (name && quarterly_price && yearly_price && full_yearly_price && url && features.length) {
+                plans.push({
+                    name: name.trim(),
+                    quarterly_price: quarterly_price.trim(),
+                    yearly_price: yearly_price.trim(),
+                    full_yearly_price: full_yearly_price.trim(),
+                    url: url.trim(),
+                    features: features.map(f => f.trim())
+                });
+            }
+        });
+
+        fetch('/generate_pricing_table', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ plans: plans })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('generatedCode').value = data.code;
+        });
+    }
+
+    function copyCode() {
+        var codeText = document.getElementById('generatedCode');
+        codeText.select();
+        codeText.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand("copy");
+        alert("Code gekopieerd!");
+    }
+</script>
+
+</body>
+</html>

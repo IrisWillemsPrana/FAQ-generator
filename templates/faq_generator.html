@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .faq-form {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .faq-form input,
+        .faq-form textarea,
+        .faq-form button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .faq-form button {
+            background: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+        }
+        .output {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .output textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        nav {
+            background-color: #007bff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/">Home</a>
+    <a href="/faq-generator">FAQ Generator</a>
+    <a href="/pricing-table-generator">Prijstabel Generator</a>
+    <a href="/logout">Logout</a>
+</nav>
+
+<div class="faq-form">
+    <h2>FAQ Generator</h2>
+    <div id="faqs">
+        <div class="faq">
+            <input type="text" class="question" placeholder="Voer de vraag in">
+            <textarea class="answer" rows="5" placeholder="Voer het antwoord in"></textarea>
+        </div>
+    </div>
+    <button onclick="addFaq()">Nog een FAQ Toevoegen</button>
+    <button onclick="generateCode()">Genereer Code</button>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" accept=".csv">
+        <button type="button" onclick="uploadCSV()">Upload CSV</button>
+    </form>
+</div>
+
+<div class="output">
+    <h3>Gegenereerde Code</h3>
+    <textarea id="generatedCode" readonly></textarea>
+    <button onclick="copyCode()">Kopieer Code</button>
+</div>
+
+<script>
+    function addFaq() {
+        var faqDiv = document.createElement('div');
+        faqDiv.classList.add('faq');
+        faqDiv.innerHTML = '<input type="text" class="question" placeholder="Voer de vraag in"><textarea class="answer" rows="5" placeholder="Voer het antwoord in"></textarea>';
+        document.getElementById('faqs').appendChild(faqDiv);
+    }
+
+    function generateCode() {
+        var faqs = [];
+        var faqElements = document.querySelectorAll('.faq');
+        faqElements.forEach(function(faq) {
+            var question = faq.querySelector('.question').value;
+            var answer = faq.querySelector('.answer').value;
+            if (question && answer) {
+                faqs.push({ question: question, answer: answer });
+            }
+        });
+
+        fetch('/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ faqs: faqs })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('generatedCode').value = data.code;
+        });
+    }
+
+    function copyCode() {
+        var codeText = document.getElementById('generatedCode');
+        codeText.select();
+        codeText.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand("copy");
+        alert("Code gekopieerd!");
+    }
+
+    function uploadCSV() {
+        var fileInput = document.getElementById('fileInput');
+        var file = fileInput.files[0];
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload_csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            var faqs = data.faqs;
+            var faqsContainer = document.getElementById('faqs');
+            faqsContainer.innerHTML = ''; // Clear existing FAQs
+            faqs.forEach(faq => {
+                var faqDiv = document.createElement('div');
+                faqDiv.classList.add('faq');
+                faqDiv.innerHTML = `<input type="text" class="question" value="${faq.question}" placeholder="Voer de vraag in"><textarea class="answer" rows="5" placeholder="Voer het antwoord in">${faq.answer}</textarea>`;
+                faqsContainer.appendChild(faqDiv);
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
