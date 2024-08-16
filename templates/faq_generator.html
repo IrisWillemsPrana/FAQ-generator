@@ -93,6 +93,16 @@
         <input type="file" id="fileInput" name="file" accept=".csv">
         <button type="button" onclick="uploadCSV()">Upload CSV</button>
     </form>
+
+    <div class="instructions">
+        <h3>CSV-instructies voor FAQ Generator</h3>
+        <p>De CSV-bestand moet de volgende kolommen bevatten:</p>
+        <ul>
+            <li><strong>Vraag</strong>: De vraagtekst.</li>
+            <li><strong>Antwoord</strong>: Het antwoord op de vraag.</li>
+        </ul>
+        <p><a href="/static/faq_template.csv" download>Klik hier om een voorbeeld-CSV te downloaden</a>.</p>
+    </div>
 </div>
 
 <div class="output">

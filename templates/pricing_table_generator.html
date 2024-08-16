@@ -97,6 +97,20 @@
         <input type="file" id="fileInput" name="file" accept=".csv">
         <button type="button" onclick="uploadCSV()">Upload CSV</button>
     </form>
+
+    <div class="instructions">
+        <h3>CSV-instructies voor Prijstabel Generator</h3>
+        <p>De CSV-bestand moet de volgende kolommen bevatten:</p>
+        <ul>
+            <li><strong>name</strong>: De naam van het plan (bijvoorbeeld Brons, Zilver, Goud).</li>
+            <li><strong>quarterly_price</strong>: De prijs per kwartaal.</li>
+            <li><strong>yearly_price</strong>: De prijs per jaar (met korting).</li>
+            <li><strong>full_yearly_price</strong>: De volledige prijs per jaar (zonder korting).</li>
+            <li><strong>url</strong>: De URL voor de knop "Kies dit plan".</li>
+            <li><strong>features</strong>: De functies van het plan, gescheiden door een puntkomma (<code>;</code>).</li>
+        </ul>
+        <p><a href="/static/pricing_template.csv" download>Klik hier om een voorbeeld-CSV te downloaden</a>.</p>
+    </div>
 </div>
 
 <div class="output">
