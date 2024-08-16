@@ -1,0 +1,4 @@
+name,quarterly_price,yearly_price,full_yearly_price,url,features
+Brons,100,350,400,http://example.com,Functie 1;Functie 2;Functie 3
+Zilver,150,450,500,http://example.com,Functie A;Functie B;Functie C
+Goud,200,550,600,http://example.com,Functie X;Functie Y;Functie Z

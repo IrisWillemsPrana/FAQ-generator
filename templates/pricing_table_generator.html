@@ -92,6 +92,11 @@
     </div>
     <button onclick="addPlan()">Nog een plan toevoegen</button>
     <button onclick="generatePricing()">Genereer Prijstabel</button>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" accept=".csv">
+        <button type="button" onclick="uploadCSV()">Upload CSV</button>
+    </form>
 </div>
 
 <div class="output">
@@ -148,6 +153,37 @@
         .then(response => response.json())
         .then(data => {
             document.getElementById('generatedCode').value = data.code;
+        });
+    }
+
+    function uploadCSV() {
+        var fileInput = document.getElementById('fileInput');
+        var file = fileInput.files[0];
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload_pricing_csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            var plans = data.plans;
+            var plansContainer = document.getElementById('plans');
+            plansContainer.innerHTML = ''; // Clear existing plans
+            plans.forEach(plan => {
+                var planDiv = document.createElement('div');
+                planDiv.classList.add('plan');
+                planDiv.innerHTML = `
+                    <input type="text" class="plan-name" value="${plan.name}" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+                    <input type="text" class="quarterly-price" value="${plan.quarterly_price}" placeholder="Prijs per kwartaal" required>
+                    <input type="text" class="yearly-price" value="${plan.yearly_price}" placeholder="Prijs per jaar (met korting)" required>
+                    <input type="text" class="full-yearly-price" value="${plan.full_yearly_price}" placeholder="Volledige prijs per jaar" required>
+                    <input type="url" class="url" value="${plan.url}" placeholder="URL voor de knop" required>
+                    <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required>${plan.features.join(', ')}</textarea>
+                `;
+                plansContainer.appendChild(planDiv);
+            });
         });
     }
 

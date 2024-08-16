@@ -487,6 +487,36 @@ def generate_pricing_html(data):
 
     return html
 
+@app.route('/upload_pricing_csv', methods=['POST'])
+def upload_pricing_csv():
+    if 'user' not in session:
+        return jsonify({'error': 'Not authorized'}), 401
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        plans = process_pricing_csv(filepath)
+        return jsonify({'plans': plans})
+    return jsonify({'error': 'Invalid file'}), 400
+
+def process_pricing_csv(filepath):
+    df = pd.read_csv(filepath)
+    df.columns = [col.strip() for col in df.columns]
+    
+    plans = df.to_dict(orient='records')
+
+    # Gebruik een puntkomma (;) als scheidingsteken voor de functies
+    for plan in plans:
+        if isinstance(plan['features'], str):
+            plan['features'] = [feature.strip() for feature in plan['features'].split(';')]
+    
+    return plans
+
 # def generate_pricing_html(data):
 #     html = """
 #     <div class="wrap">
