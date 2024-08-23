@@ -14,8 +14,9 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 USERNAME = os.getenv('USER_NAME')
 PASSWORD = os.getenv('PASSWORD')
 
-# print(USERNAME)
-# print(PASSWORD)
+print(USERNAME)
+print(PASSWORD)
+print('FLASK_SECRET_KEY', app.secret_key)
 
 @app.route('/')
 def home():
@@ -28,17 +29,14 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-
-        session['user'] = username
-
-        return redirect(url_for('home'))
-        # if username == USERNAME and password == PASSWORD:
-        #     session['user'] = username
-        #     return redirect(url_for('home'))
-        # return "Invalid credentials"
+        # session['user'] = username
+        # return redirect(url_for('home'))
+        if username == USERNAME and password == PASSWORD:
+            session['user'] = username
+            return redirect(url_for('home'))
+        return "Invalid credentials"
     return render_template('login.html')
     
-
 @app.route('/logout')
 def logout():
     session.pop('user', None)
