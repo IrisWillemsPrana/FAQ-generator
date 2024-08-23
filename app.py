@@ -14,6 +14,9 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 USERNAME = os.getenv('USER_NAME')
 PASSWORD = os.getenv('PASSWORD')
 
+# print(USERNAME)
+# print(PASSWORD)
+
 @app.route('/')
 def home():
     if 'user' in session:
@@ -25,11 +28,16 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username == USERNAME and password == PASSWORD:
-            session['user'] = username
-            return redirect(url_for('home'))
-        return "Invalid credentials"
+
+        session['user'] = username
+
+        return redirect(url_for('home'))
+        # if username == USERNAME and password == PASSWORD:
+        #     session['user'] = username
+        #     return redirect(url_for('home'))
+        # return "Invalid credentials"
     return render_template('login.html')
+    
 
 @app.route('/logout')
 def logout():
@@ -219,6 +227,17 @@ def generate_faq_code(faqs):
     return html
 
 def generate_pricing_html(data):
+    height_per_function_line = 80
+    # set minimum total height
+    total_height = 500 
+
+    for plan in data["plans"]:
+        # print(len(plan["features"]))
+        new_height = len(plan["features"]) * height_per_function_line
+        if new_height > total_height:
+            total_height = new_height
+            print(total_height)
+
     html = """
     <div class="wrap">
         <div class="miswitch">
@@ -356,8 +375,12 @@ def generate_pricing_html(data):
         .pricing-table-cont {
             background: #fff;
             text-align: center;
-            position: relative;
-            height: 500px;
+            position: relative;"""
+
+    html += f"""
+            min-height: {total_height}px;"""
+            
+    html += """
             -webkit-transform-style: preserve-3d;
             transform-style: preserve-3d;
             transition: .3s ease;
@@ -369,7 +392,6 @@ def generate_pricing_html(data):
             backface-visibility: hidden;
             position: absolute;
             width: 100%;
-            height: 100%;
             top: 0;
             left: 0;
             background: #fff;
