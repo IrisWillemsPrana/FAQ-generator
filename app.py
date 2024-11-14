@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from functools import wraps
 
 load_dotenv()  # Laad de omgevingsvariabelen uit .env
 
@@ -14,23 +15,31 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 USERNAME = os.getenv('USER_NAME')
 PASSWORD = os.getenv('PASSWORD')
 
+LOGIN_REQUIRED = os.getenv('LOGIN_REQUIRED', 'False').lower() == 'true'
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if LOGIN_REQUIRED and 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 print(USERNAME)
 print(PASSWORD)
 print('FLASK_SECRET_KEY', app.secret_key)
 
 @app.route('/')
+@login_required
 def home():
-    if 'user' in session:
-        return render_template('home.html')
-    return redirect(url_for('login'))
+    return render_template('home.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        # session['user'] = username
-        # return redirect(url_for('home'))
+
         if username == USERNAME and password == PASSWORD:
             session['user'] = username
             return redirect(url_for('home'))
@@ -43,29 +52,25 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/faq-generator')
+@login_required
 def faq_generator():
-    if 'user' not in session:
-        return redirect(url_for('login'))
     return render_template('faq_generator.html')
 
 @app.route('/pricing-table-generator')
+@login_required
 def pricing_table_generator():
-    if 'user' not in session:
-        return redirect(url_for('login'))
     return render_template('pricing_table_generator.html')
 
 @app.route('/generate', methods=['POST'])
+@login_required
 def generate_faq_code():
-    if 'user' not in session:
-        return redirect(url_for('login'))
     faqs = request.json.get('faqs', [])
     code = generate_faq_code(faqs)
     return jsonify({'code': code})
 
 @app.route('/upload_csv', methods=['POST'])
+@login_required
 def upload_csv():
-    if 'user' not in session:
-        return redirect(url_for('login'))
     if 'file' not in request.files:
         return "No file part"
     file = request.files['file']
@@ -80,12 +85,20 @@ def upload_csv():
     return "Invalid file"
 
 @app.route('/generate_pricing_table', methods=['POST'])
+@login_required
 def generate_pricing_table():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    data = request.json
-    pricing_html = generate_pricing_html(data)
-    return jsonify({'code': pricing_html})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        pricing_html = generate_pricing_html(data)
+        return jsonify({'code': pricing_html})
+    except Exception as e:
+        # Print de foutmelding naar de server-log voor debugging
+        print(f"Error in generate_pricing_table: {e}")
+        # Retourneer een JSON-response met de foutmelding
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'csv'}
@@ -226,16 +239,16 @@ def generate_faq_code(faqs):
 
 def generate_pricing_html(data):
     height_per_function_line = 80
-    # set minimum total height
-    total_height = 500 
+    total_height = 500
+    image_height = 120
 
+    # Bepaal de minimale hoogte van de tabel op basis van het aantal features
     for plan in data["plans"]:
-        # print(len(plan["features"]))
-        new_height = len(plan["features"]) * height_per_function_line
+        new_height = len(plan.get("features", [])) * height_per_function_line + image_height
         if new_height > total_height:
             total_height = new_height
-            print(total_height)
 
+    # Begin van de HTML-opbouw
     html = """
     <div class="wrap">
         <div class="miswitch">
@@ -246,74 +259,102 @@ def generate_pricing_html(data):
         <div class="pricing-wrap">
     """
 
+    # Genereer HTML voor elk plan
     for plan in data['plans']:
+        name = plan.get('name', 'N/A')
+        quarterly_price = plan.get('quarterly_price', '0')
+        yearly_price = plan.get('yearly_price', '0')
+        full_yearly_price = plan.get('full_yearly_price', '0')
+        features = plan.get('features', [])
+        url = plan.get('url', '#')
+        image_url = plan.get('image_url')
+
         html += f"""
         <div class="pricing-table">
             <div class="pricing-table-cont">
                 <div class="pricing-table-quarter">
                     <div class="pricing-table-head">
-                        <h2>{plan['name']}</h2>
-                        <h3><sup>€</sup>{plan['quarterly_price']}<sub>/kwartaal</sub></h3>
+        """
+
+        # Voeg image_url toe als deze bestaat
+        if image_url:
+            html += f"""
+            <div class="image-container">
+                <img src="{image_url}" alt="Afbeelding voor {name}" style="width: 100%; max-width: 600px; margin-bottom: 20px;">
+            </div>
+            """
+
+        html += f"""
+                        <h2>{name}</h2>
+                        <h3><sup>€</sup>{quarterly_price}<sub>/kwartaal</sub></h3>
                     </div>
                     <ul class="pricing-table-list">
         """
-        for feature in plan['features']:
+
+        # Voeg elke feature toe aan de lijst
+        for feature in features:
             html += f"<li>{feature}</li>"
 
         html += f"""
                     </ul>
-                    <a href="{plan['url']}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{url}" class="pricing-table-button">Kies dit plan</a>
                 </div>
                 <div class="pricing-table-year">
                     <div class="pricing-table-head">
-                        <h2>{plan['name']}</h2>
-                        <h3><sup>€</sup>{plan['yearly_price']}<sub>/jaar</sub></h3>
-                        <h4><del>€{plan['full_yearly_price']}</del></h4>
+        """
+
+        # Voeg image_url toe voor het jaarplan als het beschikbaar is
+        if image_url:
+            html += f"""
+            <div class="image-container">
+                <img src="{image_url}" alt="Afbeelding voor {name}" style="width: 100%; max-width: 600px; margin-bottom: 20px;">
+            </div>
+            """
+
+        html += f"""
+                        <h2>{name}</h2>
+                        <h3><sup>€</sup>{yearly_price}<sub>/jaar</sub></h3>
+                        <h4><del>€{full_yearly_price}</del></h4>
                     </div>
                     <ul class="pricing-table-list">
         """
-        for feature in plan['features']:
+
+        for feature in features:
             html += f"<li>{feature}</li>"
 
         html += f"""
                     </ul>
-                    <a href="{plan['url']}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{url}" class="pricing-table-button">Kies dit plan</a>
                 </div>
             </div>
         </div>
         """
 
-    html += """
+    # Sluit de HTML en voeg CSS en JavaScript toe
+    html += f"""
         </div>
     </div>
     <style>
-        * {
+        * {{
             margin: 0;
             padding: 0;
-            -webkit-box-sizing: border-box;
-            -moz-box-sizing: border-box;
             box-sizing: border-box;
-        }
-
-        body {
+        }}
+        body {{
             font-family: 'Open sans', sans-serif;
-        }
-
-        a {
+        }}
+        a {{
             text-decoration: none;
-        }
-
-        ul {
+        }}
+        ul {{
             list-style: none;
-        }
-
-        .wrap {
+        }}
+        .wrap {{
             width: 90%;
             max-width: 1170px;
             margin: 50px auto;
-        }
-
-        .miswitch {
+        }}
+        .miswitch {{
             border: 1px solid #121212;
             border-radius: 20px;
             color: #fff;
@@ -324,18 +365,16 @@ def generate_pricing_html(data):
             padding: 10px;
             display: flex;
             justify-content: space-between;
-        }
-
-        .miswitch a {
+        }}
+        .miswitch a {{
             font-size: 14px;
             z-index: 2;
             position: relative;
             width: 50%;
             text-align: center;
             cursor: pointer;
-        }
-
-        .switch-btn {
+        }}
+        .switch-btn {{
             position: absolute;
             background: #0C1F28;
             width: 50%;
@@ -345,114 +384,93 @@ def generate_pricing_html(data):
             left: 2px;
             z-index: 1;
             transition: all .5s;
-        }
-
-        .on {
+        }}
+        .on {{
             left: 97px;
-        }
-
-        /* Price Table */
-        .pricing-wrap {
+        }}
+        /* Prijstabelstijl */
+        .pricing-table .image-container {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }}
+        .pricing-table .image-container img {{
+            width: 70%;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain; /* Houd de verhoudingen */
+        }}
+        .pricing-wrap {{
             width: 100%;
             display: flex;
             justify-content: space-between;
             flex-wrap: wrap;
-        }
-
-        .pricing-table {
+        }}
+        .pricing-table {{
             width: 32%;
             transition: transform .5s ease;
-            -webkit-perspective: 2000px;
             perspective: 2000px;
-        }
-
-        .pricing-table:hover {
+        }}
+        .pricing-table:hover {{
             transform: scale(1.07);
-        }
-
-        .pricing-table-cont {
+        }}
+        .pricing-table-cont {{
             background: #fff;
             text-align: center;
-            position: relative;"""
-
-    html += f"""
-            min-height: {total_height}px;"""
-            
-    html += """
-            -webkit-transform-style: preserve-3d;
+            position: relative;
+            min-height: {total_height}px;
             transform-style: preserve-3d;
             transition: .3s ease;
-        }
-
+        }}
         .pricing-table-quarter,
-        .pricing-table-year {
-            -webkit-backface-visibility: hidden;
+        .pricing-table-year {{
             backface-visibility: hidden;
             position: absolute;
             width: 100%;
             top: 0;
             left: 0;
             background: #fff;
-        }
-
-        .pricing-table-year {
+        }}
+        .pricing-table-year {{
             transform: rotateY(180deg);
-        }
-
-        .rotation-table {
+        }}
+        .rotation-table {{
             transform: rotateY(180deg);
-        }
-
-        .pricing-table-head {
+        }}
+        .pricing-table-head {{
             color: #121212;
             padding: 30px 0px;
-        }
-
-        .pricing-table-head h2 {
+        }}
+        .pricing-table-head h2 {{
             font-size: 16px;
             letter-spacing: 2px;
             font-weight: bold;
-        }
-
-        .pricing-table-head h3 {
+        }}
+        .pricing-table-head h3 {{
             font-size: 60px;
             font-weight: 400;
             display: inline;
-        }
-
-        .pricing-table-head h4 {
+        }}
+        .pricing-table-head h4 {{
             font-size: 30px;
             font-weight: 400;
-        }
-
+        }}
         .pricing-table-head h3 sup,
-        .pricing-table-head h3 sub {
+        .pricing-table-head h3 sub {{
             font-size: 20px;
             color: #ABB8C0;
             font-weight: 600;
-        }
-
-        .pricing-table-head h3 sub {
-            font-size: 13px;
-        }
-
-        .pricing-table-head.silver-title h2,
-        .pricing-table-head.silver-title h3,
-        .pricing-table-head.silver-title h3 sup,
-        .pricing-table-head.silver-title h3 sub {
-            color: #298039;
-        }
-
-        .pricing-table-list li {
+        }}
+        .pricing-table-list li {{
             background: #F1F3F5;
             padding: 10px 0;
-        }
-
-        .pricing-table-list li:nth-child(2n) {
+        }}
+        .pricing-table-list li:nth-child(2n) {{
             background: #fff;
-        }
-
-        .pricing-table-button {
+        }}
+        .pricing-table-button {{
             display: block;
             border-radius: 2rem;
             width: 100%;
@@ -460,57 +478,41 @@ def generate_pricing_html(data):
             background: #121212;
             color: #fff;
             margin-top: 23px;
-        }
-
-        .pricing-table-button.silver {
-            background: #298039;
-        }
-
-        /* RESPONSIVE ===============================  */
-        @media screen and (max-width: 750px) {
-            .pricing-table {
+        }}
+        /* Responsive styling */
+        @media screen and (max-width: 750px) {{
+            .pricing-table {{
                 width: 72%;
                 margin-bottom: 20px;
-            }
-
-            .pricing-wrap {
+            }}
+            .pricing-wrap {{
                 justify-content: center;
-            }
-
-            .pricing-table:hover {
-                transform: scale(1.0);
-            }
-        }
-
-        @media screen and (max-width: 500px) {
-            .pricing-table {
+            }}
+        }}
+        @media screen and (max-width: 500px) {{
+            .pricing-table {{
                 width: 90%;
-            }
-        }
+            }}
+        }}
     </style>
     <script>
-        // Listen for clicks on the anchor tags within the .miswitch class
-        document.querySelectorAll('.miswitch a').forEach(function(anchor) {
-            anchor.addEventListener('click', function() {
-                // Toggle the 'on' class on the switch button
+        document.querySelectorAll('.miswitch a').forEach(function(anchor) {{
+            anchor.addEventListener('click', function() {{
                 let switchBtn = document.querySelector('.switch-btn')
                 switchBtn.classList.toggle('on')
-
-                // Toggle the 'rotation-table' class on all pricing table containers
-                document.querySelectorAll('.pricing-table-cont').forEach(function(cont) {
+                document.querySelectorAll('.pricing-table-cont').forEach(function(cont) {{
                     cont.classList.toggle('rotation-table')
-                })
-            })
-        })
+                }})
+            }})
+        }})
     </script>
     """
 
     return html
 
 @app.route('/upload_pricing_csv', methods=['POST'])
+@login_required
 def upload_pricing_csv():
-    if 'user' not in session:
-        return jsonify({'error': 'Not authorized'}), 401
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
@@ -527,277 +529,16 @@ def upload_pricing_csv():
 def process_pricing_csv(filepath):
     df = pd.read_csv(filepath)
     df.columns = [col.strip() for col in df.columns]
-    
-    plans = df.to_dict(orient='records')
 
-    # Gebruik een puntkomma (;) als scheidingsteken voor de functies
+    # Zorg ervoor dat de functies worden opgesplitst als puntkomma-gescheiden lijst
+    plans = df.to_dict(orient='records')
     for plan in plans:
         if isinstance(plan['features'], str):
             plan['features'] = [feature.strip() for feature in plan['features'].split(';')]
-    
+        if 'image_url' not in plan:
+            plan['image_url'] = ''  # Zorg ervoor dat er een lege waarde is als 'image_url' ontbreekt
+
     return plans
-
-# def generate_pricing_html(data):
-#     html = """
-#     <div class="wrap">
-#         <div class="miswitch">
-#             <div class="switch-btn" id="switch-btn"></div>
-#             <a id="month-btn">Maand</a>
-#             <a id="year-btn">Jaar</a>
-#         </div>
-#         <div class="pricing-wrap">
-#     """
-
-#     for plan in data['plans']:
-#         html += f"""
-#         <div class="pricing-table">
-#             <div class="pricing-table-cont">
-#                 <div class="pricing-table-month">
-#                     <div class="pricing-table-head">
-#                         <h2>{plan['name']} MAAND</h2>
-#                         <h3><sup>€</sup>{plan['monthly_price']}<sub>/maand</sub></h3>
-#                     </div>
-#                     <ul class="pricing-table-list">
-#         """
-#         for feature in plan['features']:
-#             html += f"<li><span> {plan['name']} </span>{feature}</li>"
-
-#         html += f"""
-#                     </ul>
-#                     <a href="#" class="pricing-table-button">Kies dit plan</a>
-#                 </div>
-#                 <div class="pricing-table-year">
-#                     <div class="pricing-table-head">
-#                         <h2>{plan['name']} JAAR</h2>
-#                         <h3><sup>€</sup>{plan['yearly_price']}<sub>/jaar</sub></h3>
-#                         <h4><del>{plan['yearly_discount_price']}</del></h4>
-#                     </div>
-#                     <ul class="pricing-table-list">
-#         """
-#         for feature in plan['features']:
-#             html += f"<li><span> {plan['name']} </span>{feature}</li>"
-
-#         html += f"""
-#                     </ul>
-#                     <a href="#" class="pricing-table-button">Kies dit plan</a>
-#                 </div>
-#             </div>
-#         </div>
-#         """
-
-#     html += """
-#         </div>
-#     </div>
-#     <style>
-#         *{
-# 			margin: 0;
-# 			padding: 0;
-# 			-webkit-box-sizing: border-box;
-# 			-moz-box-sizing: border-box;
-# 			box-sizing: border-box;
-# 			}
-
-# 		body{
-# 			font-family: 'Open sans', sans-serif;
-# 			}
-
-# 		a{
-# 			text-decoration: none;
-# 			}
-
-# 		ul{
-# 			list-style: none;
-# 			}
-
-# 		.wrap{
-# 			width: 90%;
-# 			max-width: 1170px;
-# 			margin: 50px auto;
-# 			}
-
-# 		.miswitch{
-# 			border: 1px solid #121212;
-# 			border-radius: 20px;
-# 			color: #fff;
-# 			position: relative;
-# 			margin: 0px auto 50px;
-# 			width: 200px;
-# 			overflow: hidden;
-# 			padding: 10px;
-# 			display: flex;
-# 			justify-content: space-between;
-# 			}
-
-# 		.miswitch a{
-# 			font-size: 14px;
-# 			z-index: 2;
-# 			position: relative;
-# 			width: 50%;
-# 			text-align: center;
-# 			cursor: pointer;
-# 			}
-
-# 		.switch-btn{
-# 			position: absolute;
-# 			background: #0C1F28;
-# 			width: 50%;
-# 			height: 90%;
-# 			border-radius: 20px;
-# 			top: 2px;
-# 			left: 2px;
-# 			z-index: 1;
-# 			transition: all .5s;
-# 			}
-
-# 		.on{
-# 			left: 97px;
-# 			}
-
-# 		/* Price Table */
-# 		.pricing-wrap{
-# 			width: 100%;
-# 			display: flex;
-# 			justify-content: space-between;
-# 			flex-wrap: wrap;
-# 		}
-
-# 		.pricing-table{
-# 			width: 32%;
-# 			transition: transform .5s ease;
-
-# 			-webkit-perspective: 2000px;
-# 			perspective: 2000px;
-# 		}
-
-# 		.pricing-table:hover{
-# 			transform: scale(1.07);
-# 		}
-
-# 		.pricing-table-cont{
-# 			background: #fff;
-# 			text-align: center;
-# 			position: relative;
-# 			height: 500px;
-
-# 			-webkit-transform-style: preserve-3d;
-# 			transform-style: preserve-3d;
-
-# 			transition: .3s ease;
-# 		}
-
-# 		.pricing-table-month, .pricing-table-year{
-# 			-webkit-backface-visibility: hidden;
-# 			backface-visibility: hidden;
-# 			position: absolute;
-# 			width: 100%;
-# 			height: 100%;
-# 			top: 0;
-# 			left: 0;
-# 			background: #fff;
-# 		}
-
-# 		.pricing-table-quarter{
-# 			transform: rotateY(180deg);
-# 		}
-
-# 		.pricing-table-year{
-# 			transform: rotateY(180deg);
-# 		}
-
-# 		.rotation-table{
-# 			transform: rotateY(180deg);
-# 		}
-
-# 		.pricing-table-head{
-# 			color: #121212;
-# 			padding: 30px 0px;
-# 		}
-
-# 		.pricing-table-head h2{
-# 			font-size: 16px;
-# 			letter-spacing: 2px;	
-# 			font-weight: bold;
-# 		}
-
-# 		.pricing-table-head h3{
-# 			font-size: 60px;
-# 			font-weight: 400;
-# 			display: inline;
-# 		}
-
-# 		.pricing-table-head h4{
-# 			font-size: 30px;
-# 			font-weight: 400;
-# 		}
-
-# 		.pricing-table-head h3 sup, .pricing-table-head h3 sub{
-# 			font-size: 20px;
-# 			color: #ABB8C0;
-# 			font-weight: 600;
-# 		}
-
-# 		.pricing-table-head h3 sub{
-# 			font-size: 13px;
-# 		}
-
-# 		.pricing-table-head.silver-title h2,
-# 		.pricing-table-head.silver-title h3,
-# 		.pricing-table-head.silver-title h3 sup,
-# 		.pricing-table-head.silver-title h3 sub{
-# 			color: #298039;
-# 		}
-
-# 		.pricing-table-list li{
-# 			background: #F1F3F5;
-# 			padding: 10px 0;
-# 		}
-
-# 		.pricing-table-list li:nth-child(2n){
-# 			background: #fff;
-# 		}
-
-# 		.pricing-table-button{
-# 			display: block;
-# 			border-radius: 2rem;
-# 			width: 100%;
-# 			padding: 20px 0;
-# 			background: #121212;
-# 			color: #fff;
-# 			margin-top: 23px;
-# 		}
-
-# 		.pricing-table-button.silver{
-# 			background: #298039;
-# 		}
-
-# 		/* RESPONSIVE ===============================  */
-# 		@media screen and (max-width: 750px){
-# 			.pricing-table{
-# 				width: 72%;
-# 				margin-bottom: 20px;
-# 			}
-
-# 			.pricing-wrap{
-# 				justify-content: center;
-# 			}
-
-# 			.pricing-table:hover{
-# 				transform: scale(1.0) ;
-# 			}
-# 		}
-
-# 		@media screen and (max-width: 500px){
-# 			.pricing-table{
-# 				width: 90%;
-# 			}
-# 		}
-#     </style>
-#     <script>
-#         // Listen for clicks on the anchor tags within the .miswitch class
-#         document.querySelectorAll('.miswitch a').forEach(function(anchor) {
-#             anchor.addEventListener('click', function() {
-#                 // Toggle the 'on' class on the switch button
-#                 let switchBtn = document.querySelector('.switch-btn')
 #                 switchBtn.classList.toggle('on')
 
 #                 // Toggle the 'rotation-table' class on all pricing table containers

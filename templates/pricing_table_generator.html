@@ -83,6 +83,7 @@
     <div id="plans">
         <div class="plan">
             <input type="text" class="plan-name" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+            <input type="url" id="image-url" placeholder="URL van de afbeelding bovenaan de tabel">
             <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
             <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
             <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
@@ -125,6 +126,7 @@
         planDiv.classList.add('plan');
         planDiv.innerHTML = `
             <input type="text" class="plan-name" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+            <input type="url" id="image-url" placeholder="URL van de afbeelding bovenaan de tabel">
             <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
             <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
             <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
@@ -139,6 +141,7 @@
         var planElements = document.querySelectorAll('.plan');
         planElements.forEach(function(plan) {
             var name = plan.querySelector('.plan-name').value;
+            var image_url = plan.querySelector('.image-url').value;
             var quarterly_price = plan.querySelector('.quarterly-price').value;
             var yearly_price = plan.querySelector('.yearly-price').value;
             var full_yearly_price = plan.querySelector('.full-yearly-price').value;
@@ -148,6 +151,7 @@
             if (name && quarterly_price && yearly_price && full_yearly_price && url && features.length) {
                 plans.push({
                     name: name.trim(),
+                    image_url: image_url.trim(),
                     quarterly_price: quarterly_price.trim(),
                     yearly_price: yearly_price.trim(),
                     full_yearly_price: full_yearly_price.trim(),
@@ -157,16 +161,26 @@
             }
         });
 
+        const requestData = { plans: plans };
+        console.log("Request data:", requestData); // Log de data om te controleren
+
         fetch('/generate_pricing_table', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ plans: plans })
+            body: JSON.stringify(requestData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error("Network response was not ok");
+            return response.json();
+        })
         .then(data => {
             document.getElementById('generatedCode').value = data.code;
+        })
+        .catch(error => {
+            console.error("Error in generatePricing:", error);
+            alert("Er is een fout opgetreden: " + error.message);
         });
     }
 
@@ -184,12 +198,13 @@
         .then(data => {
             var plans = data.plans;
             var plansContainer = document.getElementById('plans');
-            plansContainer.innerHTML = ''; // Clear existing plans
+            plansContainer.innerHTML = ''; // Wis bestaande plannen
             plans.forEach(plan => {
                 var planDiv = document.createElement('div');
                 planDiv.classList.add('plan');
                 planDiv.innerHTML = `
                     <input type="text" class="plan-name" value="${plan.name}" placeholder="Plan naam (Brons, Zilver, Goud)" required>
+                    <input type="url" class="image-url" value="${plan.image_url}" placeholder="URL van de afbeelding bovenaan de tabel"> <!-- Zorg dat image-url per plan wordt weergegeven -->
                     <input type="text" class="quarterly-price" value="${plan.quarterly_price}" placeholder="Prijs per kwartaal" required>
                     <input type="text" class="yearly-price" value="${plan.yearly_price}" placeholder="Prijs per jaar (met korting)" required>
                     <input type="text" class="full-yearly-price" value="${plan.full_yearly_price}" placeholder="Volledige prijs per jaar" required>
