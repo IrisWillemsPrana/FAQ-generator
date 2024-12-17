@@ -266,7 +266,8 @@ def generate_pricing_html(data):
         yearly_price = plan.get('yearly_price', '0')
         full_yearly_price = plan.get('full_yearly_price', '0')
         features = plan.get('features', [])
-        url = plan.get('url', '#')
+        yearly_url = plan.get('yearly_url', '#')
+        quarterly_url = plan.get('quarterly_url', '#')
         image_url = plan.get('image_url')
 
         html += f"""
@@ -280,7 +281,7 @@ def generate_pricing_html(data):
         if image_url:
             html += f"""
             <div class="image-container">
-                <img src="{image_url}" alt="Afbeelding voor {name}" style="width: 100%; max-width: 600px; margin-bottom: 20px;">
+                <img src="{image_url}" alt="Afbeelding voor {name}">
             </div>
             """
 
@@ -294,10 +295,10 @@ def generate_pricing_html(data):
         # Voeg elke feature toe aan de lijst
         for feature in features:
             html += f"<li>{feature}</li>"
-
+        
         html += f"""
                     </ul>
-                    <a href="{url}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{quarterly_url}" class="pricing-table-button">Kies dit plan</a>
                 </div>
                 <div class="pricing-table-year">
                     <div class="pricing-table-head">
@@ -307,7 +308,7 @@ def generate_pricing_html(data):
         if image_url:
             html += f"""
             <div class="image-container">
-                <img src="{image_url}" alt="Afbeelding voor {name}" style="width: 100%; max-width: 600px; margin-bottom: 20px;">
+                <img src="{image_url}" alt="Afbeelding voor {name}">
             </div>
             """
 
@@ -321,10 +322,10 @@ def generate_pricing_html(data):
 
         for feature in features:
             html += f"<li>{feature}</li>"
-
+        
         html += f"""
                     </ul>
-                    <a href="{url}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{yearly_url}" class="pricing-table-button">Kies dit plan</a>
                 </div>
             </div>
         </div>
@@ -398,7 +399,6 @@ def generate_pricing_html(data):
         }}
         .pricing-table .image-container img {{
             width: 70%;
-            max-width: 100%;
             height: auto;
             object-fit: contain; /* Houd de verhoudingen */
         }}
@@ -539,18 +539,6 @@ def process_pricing_csv(filepath):
             plan['image_url'] = ''  # Zorg ervoor dat er een lege waarde is als 'image_url' ontbreekt
 
     return plans
-#                 switchBtn.classList.toggle('on')
-
-#                 // Toggle the 'rotation-table' class on all pricing table containers
-#                 document.querySelectorAll('.pricing-table-cont').forEach(function(cont) {
-#                     cont.classList.toggle('rotation-table')
-#                 })
-#             })
-#         })
-#     </script>
-#     """
-
-#     return html
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):

@@ -87,7 +87,8 @@
             <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
             <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
             <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
-            <input type="url" class="url" placeholder="URL voor de knop" required>
+            <input type="url" class="yearly_url" placeholder="URL voor de knop voor het jaar-abonnement" required>
+            <input type="url" class="quarterly_url" placeholder="URL voor de knop voor het kwartaal-abonnement" required>
             <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required></textarea>
         </div>
     </div>
@@ -107,7 +108,8 @@
             <li><strong>quarterly_price</strong>: De prijs per kwartaal.</li>
             <li><strong>yearly_price</strong>: De prijs per jaar (met korting).</li>
             <li><strong>full_yearly_price</strong>: De volledige prijs per jaar (zonder korting).</li>
-            <li><strong>url</strong>: De URL voor de knop "Kies dit plan".</li>
+            <li><strong>yearly_url</strong>: De URL voor de knop "Kies dit plan" voor het jaarabonnement.</li>
+            <li><strong>quarterly_url</strong>: De URL voor de knop "Kies dit plan" voor het kwartaalabonnement.</li>
             <li><strong>features</strong>: De functies van het plan, gescheiden door een puntkomma (<code>;</code>).</li>
         </ul>
         <p><a href="/static/pricing_template.csv" download>Klik hier om een voorbeeld-CSV te downloaden</a>.</p>
@@ -130,7 +132,8 @@
             <input type="text" class="quarterly-price" placeholder="Prijs per kwartaal" required>
             <input type="text" class="yearly-price" placeholder="Prijs per jaar (met korting)" required>
             <input type="text" class="full-yearly-price" placeholder="Volledige prijs per jaar" required>
-            <input type="url" class="url" placeholder="URL voor de knop" required>
+            <input type="url" class="yearly_url" placeholder="URL voor de knop voor het jaar-abonnement" required>
+            <input type="url" class="quarterly_url" placeholder="URL voor de knop voor het kwartaal-abonnement" required>
             <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required></textarea>
         `;
         document.getElementById('plans').appendChild(planDiv);
@@ -145,17 +148,19 @@
             var quarterly_price = plan.querySelector('.quarterly-price').value;
             var yearly_price = plan.querySelector('.yearly-price').value;
             var full_yearly_price = plan.querySelector('.full-yearly-price').value;
-            var url = plan.querySelector('.url').value;
+            var yearly_url = plan.querySelector('.yearly_url').value;
+            var quarterly_url = plan.querySelector('.quarterly_url').value;
             var features = plan.querySelector('.features').value.split(',');
 
-            if (name && quarterly_price && yearly_price && full_yearly_price && url && features.length) {
+            if (name && quarterly_price && yearly_price && full_yearly_price && features.length) {
                 plans.push({
                     name: name.trim(),
                     image_url: image_url.trim(),
                     quarterly_price: quarterly_price.trim(),
                     yearly_price: yearly_price.trim(),
                     full_yearly_price: full_yearly_price.trim(),
-                    url: url.trim(),
+                    yearly_url: yearly_url.trim(),
+                    quarterly_url: quarterly_url.trim(),
                     features: features.map(f => f.trim())
                 });
             }
@@ -208,10 +213,12 @@
                     <input type="text" class="quarterly-price" value="${plan.quarterly_price}" placeholder="Prijs per kwartaal" required>
                     <input type="text" class="yearly-price" value="${plan.yearly_price}" placeholder="Prijs per jaar (met korting)" required>
                     <input type="text" class="full-yearly-price" value="${plan.full_yearly_price}" placeholder="Volledige prijs per jaar" required>
-                    <input type="url" class="url" value="${plan.url}" placeholder="URL voor de knop" required>
+                    <input type="url" class="yearly_url" value="${plan.yearly_url}" placeholder="URL voor de knop voor het jaar-abonnement" required>
+                    <input type="url" class="quarterly_url" value="${plan.quarterly_url}" placeholder="URL voor de knop voor het kwartaal-abonnement" required>
                     <textarea class="features" rows="5" placeholder="Functies (gescheiden door komma's)" required>${plan.features.join(', ')}</textarea>
                 `;
                 plansContainer.appendChild(planDiv);
+                // generatePricing();
             });
         });
     }
