@@ -239,7 +239,7 @@ def generate_faq_code(faqs):
 
 def generate_pricing_html(data):
     height_per_function_line = 80
-    total_height = 500
+    total_height = 600
     image_height = 120
 
     # Bepaal de minimale hoogte van de tabel op basis van het aantal features
@@ -298,7 +298,7 @@ def generate_pricing_html(data):
         
         html += f"""
                     </ul>
-                    <a href="{quarterly_url}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{quarterly_url}" class="pricing-table-button" target="_blank">Kies dit plan</a>
                 </div>
                 <div class="pricing-table-year">
                     <div class="pricing-table-head">
@@ -325,7 +325,7 @@ def generate_pricing_html(data):
         
         html += f"""
                     </ul>
-                    <a href="{yearly_url}" class="pricing-table-button">Kies dit plan</a>
+                    <a href="{yearly_url}" class="pricing-table-button" target="_blank">Kies dit plan</a>
                 </div>
             </div>
         </div>
@@ -356,7 +356,7 @@ def generate_pricing_html(data):
             margin: 50px auto;
         }}
         .miswitch {{
-            border: 1px solid #121212;
+            /* border: 1px solid #121212; */
             border-radius: 20px;
             color: #fff;
             position: relative;
@@ -366,6 +366,7 @@ def generate_pricing_html(data):
             padding: 10px;
             display: flex;
             justify-content: space-between;
+            background-color: #000;
         }}
         .miswitch a {{
             font-size: 14px;
@@ -377,7 +378,7 @@ def generate_pricing_html(data):
         }}
         .switch-btn {{
             position: absolute;
-            background: #0C1F28;
+            background: #990000;
             width: 50%;
             height: 90%;
             border-radius: 20px;
@@ -417,10 +418,10 @@ def generate_pricing_html(data):
             transform: scale(1.07);
         }}
         .pricing-table-cont {{
-            background: #fff;
             text-align: center;
             position: relative;
-            min-height: {total_height}px;
+            /* min-height: {total_height}px; */
+            min-height: 1000px;
             transform-style: preserve-3d;
             transition: .3s ease;
         }}
@@ -432,6 +433,7 @@ def generate_pricing_html(data):
             top: 0;
             left: 0;
             background: #fff;
+            border-radius: 50px;
         }}
         .pricing-table-year {{
             transform: rotateY(180deg);
@@ -465,7 +467,7 @@ def generate_pricing_html(data):
         }}
         .pricing-table-list li {{
             background: #F1F3F5;
-            padding: 10px 0;
+            padding: 15px;
         }}
         .pricing-table-list li:nth-child(2n) {{
             background: #fff;
@@ -479,21 +481,51 @@ def generate_pricing_html(data):
             color: #fff;
             margin-top: 23px;
         }}
+        .pricing-table-button:hover {{
+            background-color: #990000;
+        }}
+
         /* Responsive styling */
         @media screen and (max-width: 750px) {{
-            .pricing-table {{
-                width: 72%;
-                margin-bottom: 20px;
-            }}
-            .pricing-wrap {{
-                justify-content: center;
-            }}
+        .miswitch {{
+          display: none;
         }}
-        @media screen and (max-width: 500px) {{
-            .pricing-table {{
-                width: 90%;
-            }}
+
+        .pricing-wrap {{
+            flex-direction: column;
+            align-items: center;
         }}
+
+        .pricing-table {{
+            width: 100%;
+            margin-bottom: 0px;
+            perspective: none; /* Flip-effect verwijderen op mobiel */
+        }}
+
+        .pricing-table-cont {{
+            position: static; /* Stop overlapping */
+            transform: none; /* Geen rotatie op mobiel */
+        }}
+
+        .pricing-table-quarter,
+        .pricing-table-year {{
+            position: relative; /* Herstel normale flow */
+            transform: none;
+            backface-visibility: visible; /* Zorg dat beide kanten zichtbaar zijn */
+            margin-bottom: 20px;
+        }}
+
+        .pricing-table-list {{
+          display: none;
+        }}
+    }}
+
+    @media screen and (max-width: 500px) {{
+        .pricing-table {{
+            width: 100%;
+            margin-bottom: 15px;
+        }}
+    }}
     </style>
     <script>
         document.querySelectorAll('.miswitch a').forEach(function(anchor) {{
